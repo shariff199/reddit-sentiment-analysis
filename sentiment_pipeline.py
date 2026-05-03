@@ -6,8 +6,9 @@
 # In[1]:
 
 
+import os
 import pandas as pd
-import numpy as npa
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from wordcloud import WordCloud
@@ -24,7 +25,10 @@ from nltk.stem import WordNetLemmatizer
 # In[2]:
 
 
-data_path = r"C:\Users\tauhe\Downloads\reddit_opinion_PSE_ISR.csv\reddit_opinion_PSE_ISR.csv"
+# Place reddit_opinion_PSE_ISR.csv in a `data/` folder next to this script,
+# or set the REDDIT_DATA_PATH environment variable to its full path.
+DEFAULT_DATA_PATH = os.path.join("data", "reddit_opinion_PSE_ISR.csv")
+data_path = os.environ.get("REDDIT_DATA_PATH", DEFAULT_DATA_PATH)
 
 # Load the dataset
 df_orginal = pd.read_csv(data_path)
@@ -133,7 +137,7 @@ print('Len. of data before 2023-10-07:' ,len(df))
 start_date = pd.to_datetime('2023-10-07')
 
 # Select data(posts+comments) starting from '2023-10-07'
-filtered_df = df[(df['post_created_time'] >= start_date) & (df['created_time'] >= start_date)]
+filtered_df = df[(df['post_created_time'] >= start_date) & (df['created_time'] >= start_date)].copy()
 print('Len. of data After 2023-10-07:',len(filtered_df))
 print('Num. of dropped rows:',len(df)-len(filtered_df))
 
@@ -167,7 +171,7 @@ msno.bar(filtered_df, figsize=(12, 4),color=(0.3, 0.3, 0.5))
 
 
 # Fill missing self_text with a placeholder
-filtered_df['self_text'].fillna('', inplace=True)
+filtered_df['self_text'] = filtered_df['self_text'].fillna('')
 
 
 # In[17]:
@@ -183,14 +187,14 @@ filtered_df[['user_comment_karma', 'user_total_karma', 'user_awardee_karma', 'us
 median_timestamp = filtered_df['user_account_created_time'].median()
 
 # Fill missing values with the median timestamp
-filtered_df['user_account_created_time'].fillna(median_timestamp, inplace=True)
+filtered_df['user_account_created_time'] = filtered_df['user_account_created_time'].fillna(median_timestamp)
 
 
 # In[19]:
 
 
 # Fill missing 'post_self_text' with an empty string
-filtered_df['post_self_text'].fillna('', inplace=True)
+filtered_df['post_self_text'] = filtered_df['post_self_text'].fillna('')
 
 
 # Checking again for null values after handeling the carefully
@@ -643,7 +647,7 @@ from nltk.stem import WordNetLemmatizer
 # Initialize stopwords and lemmatizer
 stop_words = set(stopwords.words('english'))
 lemmatizer = WordNetLemmatizer()
-get_ipython().system('pip install contractions')
+# Install with: pip install contractions  (see requirements.txt)
 
 import contractions
 # Function to clean and normalize text
@@ -847,7 +851,7 @@ plt.show()
 # In[64]:
 
 
-get_ipython().system('pip install vaderSentiment')
+# Install with: pip install vaderSentiment  (see requirements.txt)
 
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import matplotlib.pyplot as plt
@@ -1685,11 +1689,11 @@ plt.show()
 
 
 # Grouping by subreddit and week to track sentiment over time
-weekly_sentiment_subreddit = df_top_5_subreddits.groupby(['week', 'subreddit'])['comment_sentiment'].mean().reset_index()
+weekly_sentiment_subreddit = df_top_5_subreddits.groupby(['created_week', 'subreddit'])['comment_sentiment'].mean().reset_index()
 
 # Plotting sentiment evolution for each subreddit
 plt.figure(figsize=(12, 8))
-sns.lineplot(x='week', y='comment_sentiment', hue='subreddit', data=weekly_sentiment_subreddit, marker='o', palette='tab10')
+sns.lineplot(x='created_week', y='comment_sentiment', hue='subreddit', data=weekly_sentiment_subreddit, marker='o', palette='tab10')
 plt.title('Sentiment Evolution Over Time for Top 5 Subreddits')
 plt.xlabel('Week')
 plt.ylabel('Average Sentiment')
