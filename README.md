@@ -62,6 +62,10 @@ $env:REDDIT_DATA_PATH = "C:\full\path\to\reddit_opinion_PSE_ISR.csv"  # PowerShe
 | `sentiment_pipeline.py` | Full pipeline as a Python script |
 | `sentiment_analysis_reddit.ipynb` | Same pipeline as a Jupyter notebook with rendered outputs and plots |
 | `requirements.txt` | All Python dependencies |
+| `docs/RESULTS.md` | Empirical findings: sentiment, stance, topics, forecasting, with explanations |
+| `docs/METHODOLOGY.md` | Detailed methodology and design decisions for each pipeline stage |
+| `docs/LIMITATIONS.md` | Known methodological caveats and ethical considerations |
+| `LICENSE` | MIT |
 | `.gitignore` | Excludes `data/`, virtual envs, and notebook checkpoints |
 
 ---
@@ -107,11 +111,28 @@ jupyter notebook sentiment_analysis_reddit.ipynb
 
 ---
 
+## Key Findings (summary)
+
+| Metric | Value |
+|---|---|
+| Comments analysed (post-filter) | 1,818,575 |
+| Negative sentiment | **44.0%** (796,587) |
+| Positive sentiment | 35.1% (635,028) |
+| Neutral sentiment | 20.9% (377,694) |
+| Top bigrams | `west bank`, `war crime`, `state solution`, `ethnic cleansing` |
+| LDA topics (5) | Geopolitical · Military · International Relations · Religious/Cultural · Media |
+| Chi-square (subreddit × sentiment) | p < 0.05 — sentiment significantly differs across subreddits |
+
+See [`docs/RESULTS.md`](docs/RESULTS.md) for the full results writeup with interpretations.
+
+---
+
 ## Notes
 
 - The script is a Jupyter export, so it still contains `# In[N]:` cell markers. It runs end-to-end as a single Python script after the dataset and dependencies are in place.
 - LDA and Prophet steps sample the data (100k rows) rather than using all 1.8M rows, to keep runtime manageable on a laptop.
 - All visualisations open as `plt.show()` windows when run as a script; use the notebook for inline figures.
+- Methodological caveats — particularly around the keyword-based stance classifier and the lexical misinformation flag — are documented in [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md). Findings should be cited with these caveats in mind.
 
 ---
 
