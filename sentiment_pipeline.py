@@ -19,6 +19,44 @@ import re
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
+# --- Persist all generated artifacts to results/ ---
+RESULTS_DIR = "results"
+FIGURES_DIR = os.path.join(RESULTS_DIR, "figures")
+TABLES_DIR = os.path.join(RESULTS_DIR, "tables")
+os.makedirs(FIGURES_DIR, exist_ok=True)
+os.makedirs(TABLES_DIR, exist_ok=True)
+
+_fig_counter = {"n": 0}
+_orig_plt_show = plt.show
+
+
+def _save_and_show(*args, **kwargs):
+    _fig_counter["n"] += 1
+    fig_path = os.path.join(FIGURES_DIR, f"fig_{_fig_counter['n']:03d}.png")
+    try:
+        plt.savefig(fig_path, dpi=120, bbox_inches="tight")
+    except Exception as exc:
+        print(f"[warn] could not save {fig_path}: {exc}")
+    return _orig_plt_show(*args, **kwargs)
+
+
+# Monkey-patch plt.show so every figure in the pipeline is auto-saved.
+plt.show = _save_and_show
+
+
+def save_table(df, name):
+    """Write a DataFrame/Series result to results/tables/<name>.csv."""
+    path = os.path.join(TABLES_DIR, f"{name}.csv")
+    try:
+        if isinstance(df, pd.Series):
+            df.to_frame().to_csv(path)
+        else:
+            df.to_csv(path, index=False)
+        print(f"[saved] {path}")
+    except Exception as exc:
+        print(f"[warn] could not save {path}: {exc}")
+# --- end results/ wiring ---
+
 
 # Loading the data set 
 
@@ -460,6 +498,7 @@ highest_score_comment
 # Calculate the most popular subreddits
 popular_subreddits = df['subreddit'].value_counts().reset_index()
 popular_subreddits.columns = ['subreddit', 'count']
+save_table(popular_subreddits, "popular_subreddits")
 
 # Display the result
 popular_subreddits
@@ -874,6 +913,7 @@ df['comment_sentiment_category'] = df['comment_sentiment'].apply(lambda x: 'posi
 
 sentiment_counts = df['comment_sentiment_category'].value_counts()
 print(sentiment_counts)
+save_table(sentiment_counts, "sentiment_counts")
 
 plt.figure(figsize=(8, 5))
 sns.countplot(x='comment_sentiment_category', data=df, palette='viridis')
@@ -903,6 +943,11 @@ fig.update_layout(
     title="Funnel-Chart of Sentiment Distribution | Comments",
     title_x=0.5, width=500, height=400
 )
+try:
+    fig.write_image(os.path.join(FIGURES_DIR, "funnel_sentiment.png"))
+    fig.write_html(os.path.join(FIGURES_DIR, "funnel_sentiment.html"))
+except Exception as exc:
+    print(f"[warn] could not save plotly funnel: {exc}")
 fig.show()
 
 
@@ -1000,6 +1045,7 @@ df['stance_simple'] = df.apply(
 # Summary of stance classification
 stance_summary_simple = df['stance_simple'].value_counts()
 print(stance_summary_simple)
+save_table(stance_summary_simple, "stance_summary")
 
 
 # In[73]:
@@ -1007,6 +1053,7 @@ print(stance_summary_simple)
 
 # Group by 'subreddit' and 'stance_simple' to count the number of comments
 support_counts = df.groupby(['subreddit', 'stance_simple']).size().unstack(fill_value=0)
+save_table(support_counts.reset_index(), "stance_by_subreddit")
 
 # Display the support counts
 support_counts
@@ -1033,6 +1080,7 @@ plt.show()
 # Count the number of unique users per subreddit
 unique_users_per_subreddit = df.groupby('subreddit')['author_name'].nunique().reset_index()
 unique_users_per_subreddit.columns = ['subreddit', 'unique_users']
+save_table(unique_users_per_subreddit, "unique_users_per_subreddit")
 
 # Display the result
 print(unique_users_per_subreddit)
@@ -1141,6 +1189,7 @@ tfidf_feature_names = tfidf_vectorizer.get_feature_names_out()
 tfidf_scores = tfidf_matrix.sum(axis=0).A1
 tfidf_scores_df = pd.DataFrame(list(zip(tfidf_feature_names, tfidf_scores)), columns=['term', 'score'])
 tfidf_scores_df = tfidf_scores_df.sort_values(by='score', ascending=False)
+save_table(tfidf_scores_df, "tfidf_top_terms_comments")
 
 # Display top 20 terms
 print("Top 20 Terms by TF-IDF Score:")
@@ -1259,6 +1308,9 @@ bigram_counts = Counter(generate_bigrams(df_sampled))
 
 # Convert the top 20 most common bigrams to a DataFrame for visualization
 bigram_df = pd.DataFrame(bigram_counts.most_common(20), columns=['bigram', 'count'])
+_bigram_export = bigram_df.copy()
+_bigram_export['bigram'] = _bigram_export['bigram'].apply(lambda b: ' '.join(b))
+save_table(_bigram_export, "top_bigrams")
 
 # Visualization: Bar plot of top 20 bigrams
 plt.figure(figsize=(12, 6))
@@ -1352,6 +1404,7 @@ plt.show()
 # Emotion Patterns Across Subreddits
 top_subreddits = df['subreddit'].value_counts().head(5).index
 emotion_by_subreddit = df[df['subreddit'].isin(top_subreddits)].groupby('subreddit')[emotion_columns].mean()
+save_table(emotion_by_subreddit.reset_index(), "emotion_by_subreddit")
 
 plt.figure(figsize=(14, 8))
 sns.heatmap(emotion_by_subreddit.T, annot=True, cmap='coolwarm')
@@ -1399,7 +1452,14 @@ def perform_lda_optimized(df, text_column, num_topics=3, num_words=20):
         plt.axis('off')
         plt.title(f"Word Cloud for Topic {idx + 1} in {text_column}")
         plt.show()
-    
+
+    # Persist the topic-word table for this text column
+    save_table(
+        pd.DataFrame([(t, ", ".join(words)) for t, words in topics.items()],
+                     columns=["topic", "top_words"]),
+        f"lda_topics_{text_column}",
+    )
+
     # Return the LDA model and feature names for bar graph visualization
     return lda_model, feature_names
 
@@ -1474,6 +1534,13 @@ df['misinformation_flag'] = df['cleaned_self_text'].apply(detect_misinformation)
 # Check the number of misinformation-flagged comments
 misinformation_count = df['misinformation_flag'].sum()
 print(f"Total Misinformation-Flagged Comments: {misinformation_count}")
+save_table(
+    pd.DataFrame({
+        "metric": ["misinformation_flagged", "non_flagged"],
+        "count": [int(misinformation_count), int(len(df) - misinformation_count)]
+    }),
+    "misinformation_counts",
+)
 
 
 # In[100]:
@@ -1635,6 +1702,13 @@ if p < 0.05:
     print("There is a significant difference in sentiment distribution across subreddits.")
 else:
     print("There is no significant difference in sentiment distribution across subreddits.")
+save_table(
+    pd.DataFrame({
+        "statistic": ["chi2", "p_value", "dof"],
+        "value": [chi2, p, dof],
+    }),
+    "chi_square_subreddit_sentiment",
+)
 
 
 # In[114]:
@@ -1643,6 +1717,7 @@ else:
 # Checking distribution of controversial comments
 controversial_counts = df['controversiality'].value_counts()
 print("Controversiality Counts:\n", controversial_counts)
+save_table(controversial_counts, "controversiality_counts")
 
 # Visualization of controversial vs non-controversial comments
 plt.figure(figsize=(6,4))
@@ -1663,6 +1738,7 @@ plt.show()
 # Checking average sentiment for controversial vs non-controversial
 avg_sentiment_by_controversial = df.groupby('controversiality')['comment_sentiment'].mean()
 print("Average Sentiment by Controversiality:\n", avg_sentiment_by_controversial)
+save_table(avg_sentiment_by_controversial, "avg_sentiment_by_controversial")
 
 
 # In[117]:

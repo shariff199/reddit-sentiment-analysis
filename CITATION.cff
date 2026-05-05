@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this code in academic work, please cite as follows."
+title: "Reddit Sentiment Analysis: Israel-Palestine Discourse Post October 7, 2023"
+authors:
+  - family-names: "Shariff"
+    given-names: "Mohammed Tauheed"
+    affiliation: "University of South Wales"
+type: software
+year: 2024
+url: "https://github.com/shariff199/reddit-sentiment-analysis"
+license: MIT
+keywords:
+  - sentiment-analysis
+  - natural-language-processing
+  - reddit
+  - vader
+  - topic-modelling
+  - lda
+  - prophet
+  - dissertation
+abstract: >
+  An end-to-end NLP pipeline analysing 1.82 million Reddit comments and posts
+  about the Israel-Palestine conflict from 7 October 2023 onwards. Combines
+  VADER lexicon-based sentiment, NRCLex emotion detection, keyword-based
+  stance classification, TF-IDF and bigram analysis, LDA topic modelling,
+  Prophet weekly sentiment forecasting, and chi-square tests of sentiment
+  differences across subreddits.

@@ -7,3 +7,6 @@ __pycache__/
 *.pyc
 .env
 data/
+results/figures/
+results/tables/
+!results/README.md
